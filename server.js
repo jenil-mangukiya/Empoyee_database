@@ -7,6 +7,9 @@ const path = require("path");
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
+const json2csv = require('json2csv').parse;
+const XLSX = require('xlsx');
+const PDFDocument = require('pdfkit');
 
 // Initialize the Express app
 const app = express();
@@ -16,6 +19,9 @@ const upload = multer({ dest: 'uploads/' });
 // Enable CORS
 app.use(cors());
 app.use(bodyParser.json());
+
+// Remove the line that serves static files from the "public" directory
+// app.use(express.static(path.join(__dirname, 'public')));
 
 // Connect to MongoDB
 mongoose
@@ -233,10 +239,21 @@ app.get("/employees/search", async (req, res) => {
   }
 });
 
-// Import Document
+// Endpoint to download CSV template
+app.get('/download-template', (req, res) => {
+  const csvHeaders = ['Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'];
+  const csvContent = csvHeaders.join(',') + '\n';
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename=employee_template.csv');
+  res.status(200).send(csvContent);
+});
+
+// Import Document with validation
 app.post('/import-document', upload.single('file'), (req, res) => {
   const filePath = path.join(__dirname, 'uploads', req.file.filename);
   const employees = [];
+  const errors = [];
+  const existingEntries = new Set();
 
   fs.createReadStream(filePath)
     .pipe(csv())
@@ -245,9 +262,70 @@ app.post('/import-document', upload.single('file'), (req, res) => {
     })
     .on('end', async () => {
       try {
-        // Process the employees array and save to the database
         for (const employee of employees) {
           const { Name, City, State, Salary, JoiningDate, Department } = employee;
+
+          // Validate fields
+          if (!Name || !City || !State || !Salary || !JoiningDate || !Department) {
+            errors.push(`Missing required fields for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (!/^[A-Za-z\s]+$/.test(Name)) {
+            errors.push(`Invalid Name format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (!/^[A-Za-z\s]+$/.test(City)) {
+            errors.push(`Invalid City format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (!/^[A-Za-z\s]+$/.test(State)) {
+            errors.push(`Invalid State format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (isNaN(parseFloat(Salary))) {
+            errors.push(`Invalid Salary format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (isNaN(new Date(JoiningDate).getTime())) {
+            errors.push(`Invalid JoiningDate format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          if (!/^[A-Za-z\s]+$/.test(Department)) {
+            errors.push(`Invalid Department format for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          // Check for swapped fields
+          if (
+            /^[A-Za-z\s]+$/.test(State) && /^[A-Za-z\s]+$/.test(Name) &&
+            /^[A-Za-z\s]+$/.test(City) && isNaN(parseFloat(Salary)) &&
+            isNaN(new Date(JoiningDate).getTime()) && /^[A-Za-z\s]+$/.test(Department)
+          ) {
+            errors.push(`Swapped fields detected for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+
+          // Check for duplicate entries in the same file
+          const entryKey = `${Name}-${City}-${State}-${Department}`;
+          if (existingEntries.has(entryKey)) {
+            errors.push(`Duplicate entry found in the file for employee: ${JSON.stringify(employee)}`);
+            continue;
+          }
+          existingEntries.add(entryKey);
+
+          // Check for duplicate entries in the database by Name
+          const existingEmployeeByName = await Employee.findOne({ Name });
+          if (existingEmployeeByName) {
+            errors.push(`Duplicate entry found in the database for employee with Name: ${Name}`);
+            continue; // Skip duplicate entry
+          }
+
           const user_id = await generateUserId(); // Generate a new user_id
 
           const newEmployee = new Employee({
@@ -262,6 +340,12 @@ app.post('/import-document', upload.single('file'), (req, res) => {
 
           await newEmployee.save();
         }
+
+        if (errors.length > 0) {
+          console.error('Errors during import:', errors);
+          return res.status(400).json({ message: 'Failed to import some employees', errors });
+        }
+
         console.log('CSV file successfully processed:', employees);
         res.status(200).json({ message: 'Document imported and employees saved successfully' });
       } catch (error) {
@@ -275,22 +359,58 @@ app.post('/import-document', upload.single('file'), (req, res) => {
     });
 });
 
-// Export Employee Data to CSV
+// Export Employee Data with selectable fields and formats
 app.get('/export-document', async (req, res) => {
   try {
-    const employees = await Employee.find().lean();
+    const { fields, format = 'csv' } = req.query;
+    const selectedFields = fields ? fields.split(',') : ['user_id', 'Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'];
+
+    const employees = await Employee.find().select(selectedFields.join(' ')).lean();
     if (employees.length === 0) {
       return res.status(404).json({ message: 'No employees found' });
     }
 
-    const csvHeaders = ['user_id', 'Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'];
-    const csvRows = employees.map(employee => csvHeaders.map(header => employee[header]));
+    switch (format.toLowerCase()) {
+      case 'json':
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', 'attachment; filename=employees.json');
+        res.status(200).send(JSON.stringify(employees, null, 2));
+        break;
 
-    const csvContent = [csvHeaders.join(','), ...csvRows.map(row => row.join(','))].join('\n');
+      case 'csv':
+        const csvContent = json2csv(employees, { fields: selectedFields });
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=employees.csv');
+        res.status(200).send(csvContent);
+        break;
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=employees.csv');
-    res.status(200).send(csvContent);
+      case 'xlsx':
+        const workbook = XLSX.utils.book_new();
+        const worksheet = XLSX.utils.json_to_sheet(employees);
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees');
+        const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=employees.xlsx');
+        res.status(200).send(excelBuffer);
+        break;
+
+      case 'pdf':
+        const doc = new PDFDocument();
+        let buffers = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => {
+          const pdfData = Buffer.concat(buffers);
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', 'attachment; filename=employees.pdf');
+          res.status(200).send(pdfData);
+        });
+        doc.text(JSON.stringify(employees, null, 2));
+        doc.end();
+        break;
+
+      default:
+        res.status(400).json({ message: 'Invalid format specified' });
+    }
   } catch (error) {
     console.error('Error exporting employee data:', error);
     res.status(500).json({ message: 'Failed to export employee data' });
