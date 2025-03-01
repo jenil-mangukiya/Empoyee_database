@@ -362,10 +362,10 @@ app.post('/import-document', upload.single('file'), (req, res) => {
 // Export Employee Data with selectable fields and formats
 app.get('/export-document', async (req, res) => {
   try {
-    const { fields, format = 'csv' } = req.query;
-    const selectedFields = fields ? fields.split(',') : ['user_id', 'Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'];
+    const { ids, format = 'csv' } = req.query;
+    const query = ids ? { user_id: { $in: ids.split(',') } } : {};
+    const employees = await Employee.find(query).lean();
 
-    const employees = await Employee.find().select(selectedFields.join(' ')).lean();
     if (employees.length === 0) {
       return res.status(404).json({ message: 'No employees found' });
     }
@@ -378,7 +378,7 @@ app.get('/export-document', async (req, res) => {
         break;
 
       case 'csv':
-        const csvContent = json2csv(employees, { fields: selectedFields });
+        const csvContent = json2csv(employees, { fields: ['user_id', 'Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'] });
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=employees.csv');
         res.status(200).send(csvContent);
@@ -386,7 +386,7 @@ app.get('/export-document', async (req, res) => {
 
       case 'xlsx':
         const workbook = XLSX.utils.book_new();
-        const worksheet = XLSX.utils.json_to_sheet(employees);
+        const worksheet = XLSX.utils.json_to_sheet(employees, { header: ['user_id', 'Name', 'City', 'State', 'Salary', 'JoiningDate', 'Department'] });
         XLSX.utils.book_append_sheet(workbook, worksheet, 'Employees');
         const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -404,7 +404,17 @@ app.get('/export-document', async (req, res) => {
           res.setHeader('Content-Disposition', 'attachment; filename=employees.pdf');
           res.status(200).send(pdfData);
         });
-        doc.text(JSON.stringify(employees, null, 2));
+
+        // Add table headers
+        doc.fontSize(12).text('User ID', { continued: true }).text('Name', { continued: true }).text('City', { continued: true }).text('State', { continued: true }).text('Salary', { continued: true }).text('Joining Date', { continued: true }).text('Department');
+        doc.moveDown();
+
+        // Add table rows
+        employees.forEach(employee => {
+          doc.fontSize(10).text(employee.user_id, { continued: true }).text(employee.Name, { continued: true }).text(employee.City, { continued: true }).text(employee.State, { continued: true }).text(employee.Salary, { continued: true }).text(new Date(employee.JoiningDate).toLocaleDateString(), { continued: true }).text(employee.Department);
+          doc.moveDown();
+        });
+
         doc.end();
         break;
 

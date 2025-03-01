@@ -24,6 +24,7 @@ body {
     width: 100%; /* Ensure header takes full width */
     box-sizing: border-box; /* Ensure padding is included in the width */
     height: 60px;
+    background: linear-gradient(90deg, #343a40 0%, #007bff 100%); /* Gradient background */
 }
 
 .logo-container {
@@ -33,10 +34,9 @@ body {
 }
 
 .logo-container img {
-    max-width: 150px;
+    max-width: 150px; /* Adjust the logo size */
     height: auto;
     margin-right: 15px;
-    border-radius: 50%;
 }
 
 /* Container Styling */
@@ -362,6 +362,42 @@ input[type="submit"] {
     cursor: pointer;
 }
 
+/* Confirmation Modal Styles */
+#confirmationModal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+#confirmationModal .modal-content {
+    background-color: #ffffff; /* White background */
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 50%;
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+#confirmationModal .close {
+    color: #aaa;
+    float: right;
+    font-size: 24px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#confirmationModal .close:hover {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+}
+
 /* Custom Alert Box */
 .custom-alert {
     display: none;
@@ -671,6 +707,20 @@ input[type="submit"] {
 
 .download-link:hover {
     color: #0056b3; /* Darker blue on hover */
+}
+
+#deleteSelectedButton {
+    background-color: #dc3545; /* Red background */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 10px 20px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+#deleteSelectedButton:hover {
+    background-color: #c82333; /* Darker red on hover */
 }
 
 

@@ -14,7 +14,7 @@
     <!-- Header Section -->
     <header class="header">
         <div class="logo-container">
-            <img src="../public/images/logiqtrove-high-resolution-logo-removebg-preview.png" alt="Company Logo">
+            <img src="../public/images/213754487-removebg-preview.png" alt="Company Logo">
             <h1><i class="fas fa-users"></i> Employee Management</h1>
         </div>
         <nav class="navbar">
@@ -119,7 +119,7 @@
         </form>
 
         <!-- Export Form -->
-        <form id="exportForm" onsubmit="exportDocument(event)" style="display: none;">
+        <form id="exportForm" onsubmit="showConfirmationModal(event)" style="display: none;">
             <div class="export-form">
                 <h2><i class="fa-solid fa-file-export"></i> Export Employee Document</h2>
                 <div class="form-group import-form">
@@ -150,6 +150,9 @@
 
         <!-- Employee List Table -->
         <div class="employee-list-container" id="employeeListContainer">
+            <div style=" margin-bottom: 10px; justify-self: end;">
+                <button id="deleteSelectedButton" onclick="deleteSelectedEmployees()" style="display: none;"><i class="fa-solid fa-trash"></i> Delete Selected</button>
+            </div>
             <table id="employeeTable">
                 <thead>
                     <tr style="background-color: #007bff; color: white;">
@@ -224,6 +227,17 @@
             </form>
         </div>
     </div>
+    </div>
+
+    <div id="confirmationModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeConfirmationModal()">&times;</span>
+            <h2>Are you sure you want to export the data?</h2>
+            <div class="sub">
+                <button onclick="confirmExport()" class="cancel-btn">Export</button>
+                <button onclick="closeConfirmationModal()" class="cancel-btn">Cancel</button>
+            </div>
+        </div>
     </div>
 
     
@@ -531,14 +545,14 @@
                 noRecordsMessage.style.display = 'none'; // Hide "No records found" message
                 employeeList.innerHTML = employees.map(employee => `
                 <tr>
-                    <td><input type="checkbox" class="employeeCheckbox" data-user-id="${employee.user_id}"></td> <!-- Add this line -->
-                    <td>${employee.user_id}</td>
-                    <td>${employee.Name}</td>
-                    <td>${employee.City}</td>
-                    <td>${employee.State}</td>
-                    <td>${employee.Salary}</td>
-                    <td>${new Date(employee.JoiningDate).toLocaleDateString()}</td>
-                    <td>${employee.Department}</td>
+                    <td><input type="checkbox" class="employeeCheckbox" data-user-id="${employee.user_id}" onchange="toggleDeleteButton()"></td> <!-- Add this line -->
+                    <td>${employee.user_id || ''}</td>
+                    <td>${employee.Name || ''}</td>
+                    <td>${employee.City || ''}</td>
+                    <td>${employee.State || ''}</td>
+                    <td>${employee.Salary || ''}</td>
+                    <td>${employee.JoiningDate ? new Date(employee.JoiningDate).toLocaleDateString() : ''}</td>
+                    <td>${employee.Department || ''}</td>
                     <td class="actions">
                        
                             <i class="fa-solid fa-eye " onclick="fetchEmployeeDetails('${employee.user_id}', 'view')"></i> 
@@ -547,7 +561,22 @@
                     </td>
                 </tr>
             `).join('');
+
+                // Fill remaining rows with empty cells if less than limit
+                const remainingRows = limit - employees.length;
+                for (let i = 0; i < remainingRows; i++) {
+                    employeeList.innerHTML += `
+                    <tr>
+                        <td colspan="9">&nbsp;</td>
+                    </tr>
+                `;
+                }
             }
+
+            // Re-attach event listeners for checkboxes
+            document.querySelectorAll('.employeeCheckbox').forEach(checkbox => {
+                checkbox.addEventListener('change', toggleDeleteButton);
+            });
         }
 
         function viewEmployeeDetails(userId) {
@@ -651,14 +680,24 @@
             }
         }
 
+        async function confirmExport() {
+            closeConfirmationModal();
+            await exportDocument();
+        }
+
         async function exportDocument(event) {
-            event.preventDefault();
+            if (event) event.preventDefault(); // Prevent form submission from causing a page refresh
             const format = document.querySelector('input[name="exportFormat"]:checked').value;
             document.getElementById('selectedFormat').style.display = 'block';
             document.getElementById('formatName').textContent = format.toUpperCase();
 
             const selectedCheckboxes = document.querySelectorAll('.employeeCheckbox:checked');
             const selectedIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.getAttribute('data-user-id'));
+
+            const confirmation = confirm("Are you sure you want to export the data?");
+            if (!confirmation) {
+                return;
+            }
 
             let url = `http://localhost:5000/export-document?format=${format}`;
             if (selectedIds.length > 0) {
@@ -669,14 +708,14 @@
                 const response = await fetch(url);
                 if (response.ok) {
                     const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
+                    const downloadUrl = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.style.display = 'none';
-                    a.href = url;
+                    a.href = downloadUrl;
                     a.download = `export_employee_data.${format}`;
                     document.body.appendChild(a);
                     a.click();
-                    window.URL.revokeObjectURL(url);
+                    window.URL.revokeObjectURL(downloadUrl);
                 } else {
                     const errorData = await response.json();
                     alert(errorData.message || 'Failed to export document');
@@ -726,6 +765,68 @@
             checkboxes.forEach(checkbox => {
                 checkbox.checked = selectAllCheckbox.checked;
             });
+            toggleDeleteButton();
+        }
+
+        function toggleDeleteButton() {
+            const checkboxes = document.querySelectorAll('.employeeCheckbox:checked');
+            const deleteButton = document.getElementById('deleteSelectedButton');
+            if (checkboxes.length > 0) {
+                deleteButton.style.display = 'block';
+            } else {
+                deleteButton.style.display = 'none';
+            }
+        }
+
+        async function deleteSelectedEmployees() {
+            const selectedCheckboxes = document.querySelectorAll('.employeeCheckbox:checked');
+            const selectedIds = Array.from(selectedCheckboxes).map(checkbox => checkbox.getAttribute('data-user-id'));
+
+            if (selectedIds.length === 0) {
+                alert('No employees selected for deletion.');
+                return;
+            }
+
+            if (!confirm("Are you sure you want to delete the selected employees?")) {
+                return;
+            }
+
+            for (const userId of selectedIds) {
+                try {
+                    const response = await fetch(`http://localhost:5000/employees/${userId}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (response.ok) {
+                        alert(`Employee with ID ${userId} deleted successfully`);
+                    } else {
+                        const errorData = await response.json();
+                        alert(errorData.message || `Failed to delete employee with ID ${userId}`);
+                    }
+                } catch (error) {
+                    console.error(`Error deleting employee with ID ${userId}:`, error);
+                    alert(`Failed to delete employee with ID ${userId}`);
+                }
+            }
+
+            fetchAllEmployees(); // Refresh the employee list and show all employees
+            document.getElementById('deleteSelectedButton').style.display = 'none'; // Hide the delete button
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            searchEmployees();
+            document.querySelectorAll('.employeeCheckbox').forEach(checkbox => {
+                checkbox.addEventListener('change', toggleDeleteButton);
+            });
+        });
+
+        function showConfirmationModal(event) {
+            event.preventDefault();
+            document.getElementById('confirmationModal').style.display = 'block';
+        }
+
+        function closeConfirmationModal() {
+            document.getElementById('confirmationModal').style.display = 'none';
         }
 
     </script>
