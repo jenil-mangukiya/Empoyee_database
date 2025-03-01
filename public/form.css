@@ -9,6 +9,7 @@
 body {
     background-color: #f4f4f9; /* Light gray background */
     overflow-x: hidden; /* Prevent horizontal scrolling */
+    line-height: 1.6; /* Improved readability */
 }
 
 /* Header Styling */
@@ -16,15 +17,13 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #343a40; /* Dark gray color */
+    background: linear-gradient(90deg, #343a40 0%, #007bff 100%); /* Gradient background */
     padding: 20px;
     color: white;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
-    height: 90px;
+    height: 60px;
     width: 100%; /* Ensure header takes full width */
     box-sizing: border-box; /* Ensure padding is included in the width */
-    height: 60px;
-    background: linear-gradient(90deg, #343a40 0%, #007bff 100%); /* Gradient background */
 }
 
 .logo-container {
@@ -100,12 +99,14 @@ h1 {
     padding: 10px 0; /* Optional padding */
     text-align: center;
     color: #ffffff; /* Dark gray color */
+    font-size: 24px; /* Increased font size */
 }
 
 h2 {
     padding-bottom: 20px;
     text-align: left;
     color: #343a40; /* Dark gray color */
+    font-size: 18px; /* Increased font size */
 }
 
 /* Form Group */
@@ -128,7 +129,7 @@ input[type="date"] {
     padding: 8px;
     border: 1px solid #ced4da; /* Light gray border */
     border-radius: 5px;
-    font-size: 16px; /* Increase font size */
+    font-size: 16px; /* Increased font size */
     margin-bottom: 10px; /* Add margin for better spacing */
 }
 
@@ -142,6 +143,7 @@ input[type="date"]:focus {
    display: flex;
     justify-content: space-between;
 }
+
 /* Buttons */
 .sub {
     text-align: center;
@@ -199,10 +201,19 @@ input[type="submit"] {
     display: flex;
     justify-content: space-around; /* Space around the buttons */
     gap: 10px; /* Add spacing between buttons */
+    align-items: center; /* Center align the buttons vertically */
+    height: 50px; /* Set a fixed height for the action box */
 }
 
 .actions i {
     cursor: pointer; /* Hand pointer on hover */
+    font-size: 18px; /* Increase icon size */
+    color: #007bff; /* Default color */
+    transition: color 0.3s; /* Smooth transition for color change */
+}
+
+.actions i:hover {
+    color: #0056b3; /* Darker blue on hover */
 }
 
 /* Search Box */
@@ -216,12 +227,12 @@ input[type="submit"] {
 }
 
 .search-container input {
-    width: 59%; /* Increase the width */
+    width: 59%; /* Increased width */
     height: auto;
     padding: 10px;
     border: 1px solid #ced4da; /* Light gray border */
     border-radius: 5px;
-    font-size: 16px; /* Increase font size */
+    font-size: 16px; /* Increased font size */
 }
 
 .search-container input:focus {
@@ -235,7 +246,7 @@ input[type="submit"] {
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    font-size: 16px; /* Increase font size */
+    font-size: 16px; /* Increased font size */
 }
 
 .search-container p {
