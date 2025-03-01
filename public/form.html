@@ -173,9 +173,9 @@
             </table>
             <p id="noRecordsMessage" style="display: none;">No records found.</p> <!-- Add this line -->
             <div class="pagination" id="paginationControls">
-                <button onclick="prevPage()">Previous</button>
+                <button onclick="prevPage()" id="prevButton">Previous</button>
                 <span id="pageInfo"></span>
-                <button onclick="nextPage()">Next</button>
+                <button onclick="nextPage()" id="nextButton">Next</button>
                 <span id="totalRecords"></span> <!-- Add this line to show total records -->
             </div>
         </div>
@@ -589,8 +589,8 @@
 
         function updatePagination(currentPage, totalPages, totalRecords) {
             document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
-            document.querySelector('.pagination button[onclick="prevPage()"]').disabled = currentPage === 1;
-            document.querySelector('.pagination button[onclick="nextPage()"]').disabled = currentPage === totalPages;
+            document.getElementById('prevButton').disabled = currentPage === 1;
+            document.getElementById('nextButton').disabled = currentPage === totalPages;
             document.getElementById('totalRecords').textContent = `Total Records: ${totalRecords}`; // Update total records
         }
 
